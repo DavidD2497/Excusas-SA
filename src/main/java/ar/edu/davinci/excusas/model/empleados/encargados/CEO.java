@@ -1,11 +1,11 @@
-package com.excusas.model.empleados.encargados;
+package ar.edu.davinci.excusas.model.empleados.encargados;
 
-import com.excusas.model.prontuarios.interfaces.IObserver;
-import com.excusas.model.prontuarios.Prontuario;
-import com.excusas.model.email.EmailSenderConcreto;
-import com.excusas.model.empleados.Encargado;
-import com.excusas.model.excusas.Excusa;
-import com.excusas.model.prontuarios.AdministradorProntuarios;
+import ar.edu.davinci.excusas.model.prontuarios.interfaces.IObserver;
+import ar.edu.davinci.excusas.model.prontuarios.Prontuario;
+import ar.edu.davinci.excusas.model.email.EmailSenderConcreto;
+import ar.edu.davinci.excusas.model.empleados.Encargado;
+import ar.edu.davinci.excusas.model.excusas.Excusa;
+import ar.edu.davinci.excusas.model.prontuarios.AdministradorProntuarios;
 
 public class CEO extends Encargado implements IObserver {
 

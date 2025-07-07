@@ -1,7 +1,7 @@
-package com.excusas.model.prontuarios.interfaces;
+package ar.edu.davinci.excusas.model.prontuarios.interfaces;
 
-import com.excusas.model.empleados.Empleado;
-import com.excusas.model.excusas.Excusa;
+import ar.edu.davinci.excusas.model.empleados.Empleado;
+import ar.edu.davinci.excusas.model.excusas.Excusa;
 
 public interface IProntuario {
     Empleado getEmpleado();

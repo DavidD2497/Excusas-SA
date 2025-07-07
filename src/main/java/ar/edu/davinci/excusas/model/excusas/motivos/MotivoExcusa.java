@@ -1,8 +1,8 @@
-package com.excusas.model.excusas.motivos;
+package ar.edu.davinci.excusas.model.excusas.motivos;
 
-import com.excusas.model.empleados.interfaces.IManejadorExcusas;
-import com.excusas.model.empleados.encargados.SupervisorArea;
-import com.excusas.model.excusas.Excusa;
+import ar.edu.davinci.excusas.model.empleados.interfaces.IManejadorExcusas;
+import ar.edu.davinci.excusas.model.empleados.encargados.SupervisorArea;
+import ar.edu.davinci.excusas.model.excusas.Excusa;
 
 public abstract class MotivoExcusa {
 

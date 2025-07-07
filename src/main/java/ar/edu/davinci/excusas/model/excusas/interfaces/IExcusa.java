@@ -1,8 +1,8 @@
-package com.excusas.model.excusas.interfaces;
+package ar.edu.davinci.excusas.model.excusas.interfaces;
 
-import com.excusas.model.empleados.Empleado;
-import com.excusas.model.empleados.interfaces.IManejadorExcusas;
-import com.excusas.model.excusas.motivos.MotivoExcusa;
+import ar.edu.davinci.excusas.model.empleados.Empleado;
+import ar.edu.davinci.excusas.model.empleados.interfaces.IManejadorExcusas;
+import ar.edu.davinci.excusas.model.excusas.motivos.MotivoExcusa;
 
 public interface IExcusa {
     Empleado getEmpleado();

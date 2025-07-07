@@ -1,8 +1,9 @@
-package com.excusas.model.prontuarios;
+package ar.edu.davinci.excusas.model.prontuarios;
 
-import com.excusas.model.prontuarios.interfaces.IProntuario;
-import com.excusas.model.empleados.Empleado;
-import com.excusas.model.excusas.Excusa;
+import ar.edu.davinci.excusas.model.prontuarios.interfaces.IProntuario;
+import ar.edu.davinci.excusas.model.empleados.Empleado;
+import ar.edu.davinci.excusas.model.excusas.Excusa;
+
 
 public class Prontuario implements IProntuario {
 

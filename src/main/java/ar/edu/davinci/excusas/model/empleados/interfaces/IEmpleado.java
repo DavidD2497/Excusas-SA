@@ -1,7 +1,7 @@
-package com.excusas.model.empleados.interfaces;
+package ar.edu.davinci.excusas.model.empleados.interfaces;
 
-import com.excusas.model.excusas.Excusa;
-import com.excusas.model.excusas.motivos.MotivoExcusa;
+import ar.edu.davinci.excusas.model.excusas.Excusa;
+import ar.edu.davinci.excusas.model.excusas.motivos.MotivoExcusa;
 
 public interface IEmpleado {
     String getNombre();

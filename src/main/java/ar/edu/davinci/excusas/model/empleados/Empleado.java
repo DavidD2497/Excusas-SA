@@ -1,8 +1,8 @@
-package com.excusas.model.empleados;
+package ar.edu.davinci.excusas.model.empleados;
 
-import com.excusas.model.empleados.interfaces.IEmpleado;
-import com.excusas.model.excusas.Excusa;
-import com.excusas.model.excusas.motivos.MotivoExcusa;
+import ar.edu.davinci.excusas.model.empleados.interfaces.IEmpleado;
+import ar.edu.davinci.excusas.model.excusas.Excusa;
+import ar.edu.davinci.excusas.model.excusas.motivos.MotivoExcusa;
 
 public class Empleado implements IEmpleado {
 

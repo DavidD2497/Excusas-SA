@@ -1,6 +1,6 @@
-package com.excusas.model.email;
+package ar.edu.davinci.excusas.model.email;
 
-import com.excusas.model.email.interfaces.IEmailSender;
+import ar.edu.davinci.excusas.model.email.interfaces.IEmailSender;
 
 public class EmailSenderConcreto implements IEmailSender {
 

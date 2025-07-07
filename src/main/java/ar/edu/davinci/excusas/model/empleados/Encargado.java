@@ -1,10 +1,10 @@
-package com.excusas.model.empleados;
+package ar.edu.davinci.excusas.model.empleados;
 
-import com.excusas.model.empleados.interfaces.IEncargado;
-import com.excusas.model.empleados.interfaces.IManejadorExcusas;
-import com.excusas.model.empleados.encargados.modos.interfaces.IModoManejo;
-import com.excusas.model.empleados.encargados.modos.ModoNormal;
-import com.excusas.model.excusas.Excusa;
+import ar.edu.davinci.excusas.model.empleados.interfaces.IEncargado;
+import ar.edu.davinci.excusas.model.empleados.interfaces.IManejadorExcusas;
+import ar.edu.davinci.excusas.model.empleados.encargados.modos.interfaces.IModoManejo;
+import ar.edu.davinci.excusas.model.empleados.encargados.modos.ModoNormal;
+import ar.edu.davinci.excusas.model.excusas.Excusa;
 
 public abstract class Encargado extends Empleado implements IEncargado {
 

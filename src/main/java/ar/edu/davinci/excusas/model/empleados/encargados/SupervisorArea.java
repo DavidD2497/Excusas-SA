@@ -1,8 +1,8 @@
-package com.excusas.model.empleados.encargados;
+package ar.edu.davinci.excusas.model.empleados.encargados;
 
-import com.excusas.model.email.EmailSenderConcreto;
-import com.excusas.model.excusas.Excusa;
-import com.excusas.model.empleados.Encargado;
+import ar.edu.davinci.excusas.model.email.EmailSenderConcreto;
+import ar.edu.davinci.excusas.model.excusas.Excusa;
+import ar.edu.davinci.excusas.model.empleados.Encargado;
 
 public class SupervisorArea extends Encargado {
 

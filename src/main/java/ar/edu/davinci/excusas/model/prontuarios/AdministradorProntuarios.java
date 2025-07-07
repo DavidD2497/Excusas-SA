@@ -1,9 +1,10 @@
-package com.excusas.model.prontuarios;
+package ar.edu.davinci.excusas.model.prontuarios;
 
-import com.excusas.model.excusas.Excusa;
-import com.excusas.model.empleados.interfaces.IEncargado;
+import ar.edu.davinci.excusas.model.excusas.Excusa;
+import ar.edu.davinci.excusas.model.empleados.interfaces.IEncargado;
 import java.util.ArrayList;
 import java.util.List;
+
 
 public class AdministradorProntuarios extends ObservableBase {
 

@@ -1,9 +1,9 @@
-package com.excusas.model.excusas;
+package ar.edu.davinci.excusas.model.excusas;
 
-import com.excusas.model.excusas.interfaces.IExcusa;
-import com.excusas.model.excusas.motivos.MotivoExcusa;
-import com.excusas.model.empleados.Empleado;
-import com.excusas.model.empleados.interfaces.IManejadorExcusas;
+import ar.edu.davinci.excusas.model.excusas.interfaces.IExcusa;
+import ar.edu.davinci.excusas.model.excusas.motivos.MotivoExcusa;
+import ar.edu.davinci.excusas.model.empleados.Empleado;
+import ar.edu.davinci.excusas.model.empleados.interfaces.IManejadorExcusas;
 
 public class Excusa implements IExcusa {
 

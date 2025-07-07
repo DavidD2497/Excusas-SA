@@ -1,7 +1,7 @@
-package com.excusas.model.prontuarios;
+package ar.edu.davinci.excusas.model.prontuarios;
 
-import com.excusas.model.prontuarios.interfaces.IObservable;
-import com.excusas.model.prontuarios.interfaces.IObserver;
+import ar.edu.davinci.excusas.model.prontuarios.interfaces.IObservable;
+import ar.edu.davinci.excusas.model.prontuarios.interfaces.IObserver;
 
 import java.util.ArrayList;
 import java.util.List;

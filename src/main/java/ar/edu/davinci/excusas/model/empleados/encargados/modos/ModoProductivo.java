@@ -1,9 +1,9 @@
-package com.excusas.model.empleados.encargados.modos;
+package ar.edu.davinci.excusas.model.empleados.encargados.modos;
 
-import com.excusas.model.email.EmailSenderConcreto;
-import com.excusas.model.empleados.interfaces.IManejadorExcusas;
-import com.excusas.model.excusas.Excusa;
-import com.excusas.model.empleados.encargados.modos.interfaces.IModoManejo;
+import ar.edu.davinci.excusas.model.email.EmailSenderConcreto;
+import ar.edu.davinci.excusas.model.empleados.interfaces.IManejadorExcusas;
+import ar.edu.davinci.excusas.model.excusas.Excusa;
+import ar.edu.davinci.excusas.model.empleados.encargados.modos.interfaces.IModoManejo;
 
 public class ModoProductivo implements IModoManejo {
 

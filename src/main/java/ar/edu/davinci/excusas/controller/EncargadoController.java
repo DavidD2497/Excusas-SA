@@ -1,21 +1,35 @@
 package ar.edu.davinci.excusas.controller;
 
+import ar.edu.davinci.excusas.exception.EncargadoNotFoundException;
+import ar.edu.davinci.excusas.exception.InvalidDataException;
 import ar.edu.davinci.excusas.model.empleados.encargados.*;
 import ar.edu.davinci.excusas.model.empleados.encargados.modos.*;
 import ar.edu.davinci.excusas.model.empleados.interfaces.IManejadorExcusas;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 
 @RestController
-@RequestMapping("/api/encargados")
+@RequestMapping("/encargados")
 public class EncargadoController {
 
     private final Map<String, IManejadorExcusas> encargados = new HashMap<>();
+    private final List<String> tiposEncargadosValidos = Arrays.asList(
+            "recepcionista", "supervisor", "gerente", "ceo"
+    );
+    private final List<String> modosValidos = Arrays.asList(
+            "NORMAL", "PRODUCTIVO", "VAGO"
+    );
+    private final List<String> capacidadesValidas = Arrays.asList(
+            "TRIVIAL", "MODERADO", "COMPLEJO", "INVEROSIMIL"
+    );
 
     public EncargadoController() {
         inicializarEncargados();
@@ -43,28 +57,53 @@ public class EncargadoController {
         return info;
     }
 
-    @PutMapping("/{tipo}/modo")
-    public String cambiarModo(@PathVariable String tipo, @RequestBody ModoRequest request) {
+    @PutMapping("/tipo/{tipo}/modo")
+    public ModoResponse cambiarModo(@PathVariable String tipo, @Valid @RequestBody ModoRequest request) {
+
+        if (!tiposEncargadosValidos.contains(tipo.toLowerCase())) {
+            throw new InvalidDataException("Tipo de encargado no válido. Tipos válidos: " + tiposEncargadosValidos);
+        }
+
+        if (!modosValidos.contains(request.getModo().toUpperCase())) {
+            throw new InvalidDataException("Modo no válido. Modos válidos: " + modosValidos);
+        }
+
         IManejadorExcusas encargado = encargados.get(tipo.toLowerCase());
         if (encargado == null) {
-            throw new RuntimeException("Encargado no encontrado: " + tipo);
+            throw new EncargadoNotFoundException("Encargado no encontrado: " + tipo);
         }
 
-        switch (request.getModo().toUpperCase()) {
-            case "NORMAL" -> encargado.setModo(new ModoNormal());
-            case "PRODUCTIVO" -> encargado.setModo(new ModoProductivo());
-            case "VAGO" -> encargado.setModo(new ModoVago());
-            default -> throw new RuntimeException("Modo no válido: " + request.getModo());
+        String modoAnterior = encargado.getModo().getClass().getSimpleName();
+        String modoSolicitado = request.getModo().toUpperCase();
+
+        if (modoSolicitado.equals("NORMAL")) {
+            encargado.setModo(new ModoNormal());
+        } else if (modoSolicitado.equals("PRODUCTIVO")) {
+            encargado.setModo(new ModoProductivo());
+        } else if (modoSolicitado.equals("VAGO")) {
+            encargado.setModo(new ModoVago());
+        } else {
+            throw new InvalidDataException("Modo no válido: " + request.getModo());
         }
 
-        return "Modo cambiado a " + request.getModo() + " para " + tipo;
+        ModoResponse response = new ModoResponse();
+        response.setMensaje("Modo cambiado a " + request.getModo() + " para " + tipo);
+        response.setTipo(tipo);
+        response.setModoAnterior(modoAnterior);
+        response.setModoNuevo(request.getModo().toUpperCase());
+        return response;
     }
 
-    @GetMapping("/{tipo}")
+    @GetMapping("/tipo/{tipo}")
     public EncargadoInfo obtenerEncargado(@PathVariable String tipo) {
+
+        if (!tiposEncargadosValidos.contains(tipo.toLowerCase())) {
+            throw new InvalidDataException("Tipo de encargado no válido. Tipos válidos: " + tiposEncargadosValidos);
+        }
+
         IManejadorExcusas encargado = encargados.get(tipo.toLowerCase());
         if (encargado == null) {
-            throw new RuntimeException("Encargado no encontrado: " + tipo);
+            throw new EncargadoNotFoundException("Encargado no encontrado: " + tipo);
         }
 
         EncargadoInfo info = new EncargadoInfo();
@@ -73,6 +112,36 @@ public class EncargadoController {
         info.setModoActual(encargado.getModo().getClass().getSimpleName());
         info.setCapacidades(obtenerCapacidades(encargado));
         return info;
+    }
+
+    @GetMapping("/buscar/capacidad/{capacidad}")
+    public List<EncargadoInfo> obtenerEncargadosPorCapacidad(@PathVariable String capacidad) {
+
+        if (!capacidadesValidas.contains(capacidad.toUpperCase())) {
+            throw new InvalidDataException("Capacidad no válida. Capacidades válidas: " + capacidadesValidas);
+        }
+
+        List<EncargadoInfo> resultado = new ArrayList<>();
+
+        for (Map.Entry<String, IManejadorExcusas> entry : encargados.entrySet()) {
+            IManejadorExcusas encargado = entry.getValue();
+            List<String> capacidades = obtenerCapacidades(encargado);
+
+            if (capacidades.contains(capacidad.toUpperCase())) {
+                EncargadoInfo info = new EncargadoInfo();
+                info.setTipo(entry.getKey());
+                info.setEmailOrigen(encargado.getEmailOrigen());
+                info.setModoActual(encargado.getModo().getClass().getSimpleName());
+                info.setCapacidades(capacidades);
+                resultado.add(info);
+            }
+        }
+
+        if (resultado.isEmpty()) {
+            throw new EncargadoNotFoundException("No se encontraron encargados con la capacidad: " + capacidad);
+        }
+
+        return resultado;
     }
 
     private List<String> obtenerCapacidades(IManejadorExcusas encargado) {
@@ -85,6 +154,7 @@ public class EncargadoController {
     }
 
     public static class ModoRequest {
+        @NotBlank(message = "El modo es obligatorio")
         private String modo;
 
         public String getModo() { return modo; }
@@ -105,5 +175,21 @@ public class EncargadoController {
         public void setModoActual(String modoActual) { this.modoActual = modoActual; }
         public List<String> getCapacidades() { return capacidades; }
         public void setCapacidades(List<String> capacidades) { this.capacidades = capacidades; }
+    }
+
+    public static class ModoResponse {
+        private String mensaje;
+        private String tipo;
+        private String modoAnterior;
+        private String modoNuevo;
+
+        public String getMensaje() { return mensaje; }
+        public void setMensaje(String mensaje) { this.mensaje = mensaje; }
+        public String getTipo() { return tipo; }
+        public void setTipo(String tipo) { this.tipo = tipo; }
+        public String getModoAnterior() { return modoAnterior; }
+        public void setModoAnterior(String modoAnterior) { this.modoAnterior = modoAnterior; }
+        public String getModoNuevo() { return modoNuevo; }
+        public void setModoNuevo(String modoNuevo) { this.modoNuevo = modoNuevo; }
     }
 }

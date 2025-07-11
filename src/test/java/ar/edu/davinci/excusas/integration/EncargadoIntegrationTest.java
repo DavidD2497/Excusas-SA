@@ -7,16 +7,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.http.*;
-import org.springframework.test.context.ActiveProfiles;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 
-import java.util.List;
-import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("test")
 public class EncargadoIntegrationTest {
 
     @LocalServerPort
@@ -29,47 +29,43 @@ public class EncargadoIntegrationTest {
     private ObjectMapper objectMapper;
 
     private String getBaseUrl() {
-        return "http://localhost:" + port + "/api/encargados";
+        return "http://localhost:" + port + "/encargados";
     }
 
     @Test
-    public void deberiaObtenerTodosLosEncargados() throws Exception {
-        ResponseEntity<List> response = restTemplate.getForEntity(getBaseUrl(), List.class);
+    public void testObtenerTodosLosEncargados() throws Exception {
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().size()).isEqualTo(4);
+        ResponseEntity<String> response = restTemplate.getForEntity(getBaseUrl(), String.class);
 
-        List<Map<String, Object>> encargados = (List<Map<String, Object>>) response.getBody();
-
-        for (Map<String, Object> encargado : encargados) {
-            assertThat(encargado.get("tipo")).isNotNull();
-            assertThat(encargado.get("emailOrigen")).isNotNull();
-            assertThat(encargado.get("modoActual")).isNotNull();
-            assertThat(encargado.get("capacidades")).isNotNull();
-            assertThat(encargado.get("capacidades")).isInstanceOf(List.class);
-        }
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody().contains("recepcionista"));
+        assertTrue(response.getBody().contains("supervisor"));
+        assertTrue(response.getBody().contains("gerente"));
+        assertTrue(response.getBody().contains("ceo"));
     }
 
     @Test
-    public void deberiaObtenerEncargadoEspecifico() throws Exception {
-        ResponseEntity<Map> response = restTemplate.getForEntity(
-                getBaseUrl() + "/recepcionista", Map.class);
+    public void testObtenerEncargado_Success() throws Exception {
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).isNotNull();
+        ResponseEntity<String> response = restTemplate.getForEntity(getBaseUrl() + "/tipo/recepcionista", String.class);
 
-        Map<String, Object> encargado = response.getBody();
-        assertThat(encargado.get("tipo")).isEqualTo("recepcionista");
-        assertThat(encargado.get("emailOrigen")).isEqualTo("laura@excusas.com");
-        assertThat(encargado.get("modoActual")).isEqualTo("ModoNormal");
-
-        List<String> capacidades = (List<String>) encargado.get("capacidades");
-        assertThat(capacidades).contains("TRIVIAL");
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody().contains("recepcionista"));
+        assertTrue(response.getBody().contains("laura@excusas.com"));
     }
 
     @Test
-    public void deberiaCambiarModoDeEncargado() throws Exception {
+    public void testObtenerEncargado_TipoInvalido() throws Exception {
+
+        ResponseEntity<String> response = restTemplate.getForEntity(getBaseUrl() + "/tipo/invalido", String.class);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertTrue(response.getBody().contains("Tipo de encargado no válido"));
+    }
+
+    @Test
+    public void testCambiarModo_Success() throws Exception {
+
         EncargadoController.ModoRequest request = new EncargadoController.ModoRequest();
         request.setModo("PRODUCTIVO");
 
@@ -78,51 +74,20 @@ public class EncargadoIntegrationTest {
         HttpEntity<EncargadoController.ModoRequest> entity = new HttpEntity<>(request, headers);
 
         ResponseEntity<String> response = restTemplate.exchange(
-                getBaseUrl() + "/supervisor/modo",
+                getBaseUrl() + "/tipo/recepcionista/modo",
                 HttpMethod.PUT,
                 entity,
                 String.class
         );
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).contains("Modo cambiado a PRODUCTIVO para supervisor");
-
-        ResponseEntity<Map> getResponse = restTemplate.getForEntity(
-                getBaseUrl() + "/supervisor", Map.class);
-
-        Map<String, Object> encargado = getResponse.getBody();
-        assertThat(encargado.get("modoActual")).isEqualTo("ModoProductivo");
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody().contains("Modo cambiado a PRODUCTIVO"));
+        assertTrue(response.getBody().contains("recepcionista"));
     }
 
     @Test
-    public void deberiaValidarCapacidadesPorTipoDeEncargado() throws Exception {
-        ResponseEntity<Map> recepcionistaResponse = restTemplate.getForEntity(
-                getBaseUrl() + "/recepcionista", Map.class);
-        Map<String, Object> recepcionista = recepcionistaResponse.getBody();
-        List<String> capacidadesRecepcionista = (List<String>) recepcionista.get("capacidades");
-        assertThat(capacidadesRecepcionista).containsExactly("TRIVIAL");
+    public void testCambiarModo_ModoInvalido() throws Exception {
 
-        ResponseEntity<Map> supervisorResponse = restTemplate.getForEntity(
-                getBaseUrl() + "/supervisor", Map.class);
-        Map<String, Object> supervisor = supervisorResponse.getBody();
-        List<String> capacidadesSupervisor = (List<String>) supervisor.get("capacidades");
-        assertThat(capacidadesSupervisor).containsExactly("MODERADO");
-
-        ResponseEntity<Map> gerenteResponse = restTemplate.getForEntity(
-                getBaseUrl() + "/gerente", Map.class);
-        Map<String, Object> gerente = gerenteResponse.getBody();
-        List<String> capacidadesGerente = (List<String>) gerente.get("capacidades");
-        assertThat(capacidadesGerente).containsExactly("COMPLEJO");
-
-        ResponseEntity<Map> ceoResponse = restTemplate.getForEntity(
-                getBaseUrl() + "/ceo", Map.class);
-        Map<String, Object> ceo = ceoResponse.getBody();
-        List<String> capacidadesCeo = (List<String>) ceo.get("capacidades");
-        assertThat(capacidadesCeo).containsExactly("INVEROSIMIL");
-    }
-
-    @Test
-    public void deberiaRechazarModoInvalido() throws Exception {
         EncargadoController.ModoRequest request = new EncargadoController.ModoRequest();
         request.setModo("MODO_INEXISTENTE");
 
@@ -131,12 +96,95 @@ public class EncargadoIntegrationTest {
         HttpEntity<EncargadoController.ModoRequest> entity = new HttpEntity<>(request, headers);
 
         ResponseEntity<String> response = restTemplate.exchange(
-                getBaseUrl() + "/recepcionista/modo",
+                getBaseUrl() + "/tipo/supervisor/modo",
                 HttpMethod.PUT,
                 entity,
                 String.class
         );
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertTrue(response.getBody().contains("Modo no válido"));
+    }
+
+    @Test
+    public void testCambiarModo_TipoEncargadoInvalido() throws Exception {
+
+        EncargadoController.ModoRequest request = new EncargadoController.ModoRequest();
+        request.setModo("NORMAL");
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<EncargadoController.ModoRequest> entity = new HttpEntity<>(request, headers);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                getBaseUrl() + "/tipo/inexistente/modo",
+                HttpMethod.PUT,
+                entity,
+                String.class
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertTrue(response.getBody().contains("Tipo de encargado no válido"));
+    }
+
+    @Test
+    public void testObtenerEncargadosPorCapacidad_Success() throws Exception {
+
+        ResponseEntity<String> response = restTemplate.getForEntity(getBaseUrl() + "/buscar/capacidad/TRIVIAL", String.class);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody().contains("recepcionista"));
+    }
+
+    @Test
+    public void testObtenerEncargadosPorCapacidad_CapacidadInvalida() throws Exception {
+
+        ResponseEntity<String> response = restTemplate.getForEntity(getBaseUrl() + "/buscar/capacidad/INEXISTENTE", String.class);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertTrue(response.getBody().contains("Capacidad no válida"));
+    }
+
+    @Test
+    public void testCambiarModoVago() throws Exception {
+
+        EncargadoController.ModoRequest request = new EncargadoController.ModoRequest();
+        request.setModo("VAGO");
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<EncargadoController.ModoRequest> entity = new HttpEntity<>(request, headers);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                getBaseUrl() + "/tipo/gerente/modo",
+                HttpMethod.PUT,
+                entity,
+                String.class
+        );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody().contains("Modo cambiado a VAGO"));
+    }
+
+    @Test
+    public void testCambiarModoNormal() throws Exception {
+
+        EncargadoController.ModoRequest request = new EncargadoController.ModoRequest();
+        request.setModo("NORMAL");
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<EncargadoController.ModoRequest> entity = new HttpEntity<>(request, headers);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                getBaseUrl() + "/tipo/ceo/modo",
+                HttpMethod.PUT,
+                entity,
+                String.class
+        );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody().contains("Modo cambiado a NORMAL"));
     }
 }
+

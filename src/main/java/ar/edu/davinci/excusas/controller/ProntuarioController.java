@@ -1,5 +1,7 @@
 package ar.edu.davinci.excusas.controller;
 
+import ar.edu.davinci.excusas.exception.InvalidDataException;
+import ar.edu.davinci.excusas.exception.BusinessRuleException;
 import ar.edu.davinci.excusas.model.prontuarios.AdministradorProntuarios;
 import ar.edu.davinci.excusas.model.prontuarios.Prontuario;
 import org.springframework.web.bind.annotation.*;
@@ -7,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/prontuarios")
+@RequestMapping("/prontuarios")
 public class ProntuarioController {
 
     private final AdministradorProntuarios administrador = AdministradorProntuarios.getInstance();
@@ -19,23 +21,48 @@ public class ProntuarioController {
                 .toList();
     }
 
-    @GetMapping("/empleado/{legajo}")
+    @GetMapping("/buscar/empleado/{legajo}")
     public List<ProntuarioResponse> obtenerProntuariosPorEmpleado(@PathVariable int legajo) {
-        return administrador.getProntuarios().stream()
+        if (legajo <= 1000) {
+            throw new InvalidDataException("El legajo debe ser mayor a 1000");
+        }
+
+        List<ProntuarioResponse> prontuarios = administrador.getProntuarios().stream()
                 .filter(prontuario -> prontuario.getLegajo() == legajo)
                 .map(this::convertirAResponse)
                 .toList();
+
+        if (prontuarios.isEmpty()) {
+            throw new BusinessRuleException("No se encontraron prontuarios para el empleado con legajo: " + legajo);
+        }
+
+        return prontuarios;
     }
 
-    @GetMapping("/count")
-    public int contarProntuarios() {
-        return administrador.getProntuarios().size();
+    @GetMapping("/estadisticas/count")
+    public ContarProntuariosResponse contarProntuarios() {
+        int cantidad = administrador.getProntuarios().size();
+        ContarProntuariosResponse response = new ContarProntuariosResponse();
+        response.setCantidad(cantidad);
+        response.setMensaje("Total de prontuarios: " + cantidad);
+        return response;
     }
 
-    @DeleteMapping
-    public String limpiarProntuarios() {
+    @DeleteMapping("/administracion/limpiar")
+    public LimpiarProntuariosResponse limpiarProntuarios() {
+        int cantidadAnterior = administrador.getProntuarios().size();
+
+        if (cantidadAnterior == 0) {
+            throw new BusinessRuleException("No hay prontuarios para eliminar");
+        }
+
         administrador.limpiarProntuarios();
-        return "Todos los prontuarios han sido eliminados";
+
+        LimpiarProntuariosResponse response = new LimpiarProntuariosResponse();
+        response.setMensaje("Todos los prontuarios han sido eliminados");
+        response.setCantidadEliminada(cantidadAnterior);
+        response.setCantidadActual(0);
+        return response;
     }
 
     private ProntuarioResponse convertirAResponse(Prontuario prontuario) {
@@ -66,5 +93,27 @@ public class ProntuarioController {
         public String getTipoMotivoExcusa() { return tipoMotivoExcusa; }
         public void setTipoMotivoExcusa(String tipoMotivoExcusa) { this.tipoMotivoExcusa = tipoMotivoExcusa; }
     }
-}
 
+    public static class ContarProntuariosResponse {
+        private int cantidad;
+        private String mensaje;
+
+        public int getCantidad() { return cantidad; }
+        public void setCantidad(int cantidad) { this.cantidad = cantidad; }
+        public String getMensaje() { return mensaje; }
+        public void setMensaje(String mensaje) { this.mensaje = mensaje; }
+    }
+
+    public static class LimpiarProntuariosResponse {
+        private String mensaje;
+        private int cantidadEliminada;
+        private int cantidadActual;
+
+        public String getMensaje() { return mensaje; }
+        public void setMensaje(String mensaje) { this.mensaje = mensaje; }
+        public int getCantidadEliminada() { return cantidadEliminada; }
+        public void setCantidadEliminada(int cantidadEliminada) { this.cantidadEliminada = cantidadEliminada; }
+        public int getCantidadActual() { return cantidadActual; }
+        public void setCantidadActual(int cantidadActual) { this.cantidadActual = cantidadActual; }
+    }
+}

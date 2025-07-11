@@ -1,12 +1,7 @@
 package ar.edu.davinci.excusas.controller;
 
-import ar.edu.davinci.excusas.exception.BusinessRuleException;
-import ar.edu.davinci.excusas.exception.ExcusaNotFoundException;
-import ar.edu.davinci.excusas.exception.InvalidDataException;
-import ar.edu.davinci.excusas.model.empleados.Empleado;
-import ar.edu.davinci.excusas.model.empleados.encargados.CadenaDeEncargados;
 import ar.edu.davinci.excusas.model.excusas.Excusa;
-import ar.edu.davinci.excusas.model.excusas.motivos.*;
+import ar.edu.davinci.excusas.service.ExcusaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
@@ -15,129 +10,76 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import ar.edu.davinci.excusas.exception.InvalidDataException;
+import ar.edu.davinci.excusas.exception.ExcusaNotFoundException;
 
 @RestController
 @RequestMapping("/excusas")
 public class ExcusaController {
 
     @Autowired
-    private EmpleadoController empleadoController;
-
-    private final List<Excusa> excusas = new ArrayList<>();
-    private final CadenaDeEncargados cadenaDeEncargados = new CadenaDeEncargados();
-    private final List<String> tiposMotivosValidos = Arrays.asList(
-            "TRIVIAL", "PROBLEMA_ELECTRICO", "PROBLEMA_FAMILIAR", "COMPLEJO", "INVEROSIMIL"
-    );
+    private ExcusaService excusaService;
 
     @PostMapping
     public ExcusaResponse crearExcusa(@Valid @RequestBody ExcusaRequest request) {
-
-        if (!tiposMotivosValidos.contains(request.getTipoMotivo().toUpperCase())) {
-            throw new InvalidDataException("Tipo de motivo no válido. Tipos válidos: " + tiposMotivosValidos);
-        }
-
-        Empleado empleado = empleadoController.obtenerEmpleadoPorLegajo(request.getLegajoEmpleado());
-
-        long excusasDelEmpleado = excusas.stream()
-                .filter(excusa -> excusa.getLegajoEmpleado() == request.getLegajoEmpleado())
-                .count();
-
-        if (excusasDelEmpleado >= 5) {
-            throw new BusinessRuleException("El empleado ya tiene el máximo de 5 excusas registradas");
-        }
-
-        MotivoExcusa motivo = crearMotivo(request.getTipoMotivo());
-        Excusa excusa = empleado.crearExcusa(motivo, request.getDescripcion().trim());
-        excusas.add(excusa);
+        Excusa excusa = excusaService.crearExcusa(
+                request.getLegajoEmpleado(),
+                request.getTipoMotivo(),
+                request.getDescripcion()
+        );
         return convertirAResponse(excusa);
     }
 
     @PostMapping("/procesar/indice/{index}")
     public ProcesarExcusaResponse procesarExcusa(@PathVariable int index) {
-        if (index < 0) {
-            throw new InvalidDataException("El índice no puede ser negativo");
+        try {
+            List<Excusa> excusas = excusaService.obtenerTodasLasExcusas();
+
+            if (index < 0) {
+                throw new InvalidDataException("El índice no puede ser negativo");
+            }
+            if (index >= excusas.size()) {
+                throw new ExcusaNotFoundException("Excusa no encontrada en el índice: " + index);
+            }
+
+            Excusa excusa = excusas.get(index);
+
+            excusaService.procesarExcusa(index);
+
+            ProcesarExcusaResponse response = new ProcesarExcusaResponse();
+            response.setMensaje("Excusa procesada correctamente");
+            response.setIndice(index);
+            response.setEmpleado(excusa.getNombreEmpleado());
+            response.setDescripcion(excusa.getDescripcion());
+            response.setTipoMotivo(excusa.getMotivo().getClass().getSimpleName());
+            return response;
+        } catch (InvalidDataException | ExcusaNotFoundException e) {
+            throw e; // Re-throw to be handled by GlobalExceptionHandler
+        } catch (Exception e) {
+            throw new RuntimeException("Error procesando excusa: " + e.getMessage(), e);
         }
-
-        if (index >= excusas.size()) {
-            throw new ExcusaNotFoundException("Excusa no encontrada en el índice: " + index + ". Total de excusas: " + excusas.size());
-        }
-
-        Excusa excusa = excusas.get(index);
-        cadenaDeEncargados.procesarExcusa(excusa);
-
-        ProcesarExcusaResponse response = new ProcesarExcusaResponse();
-        response.setMensaje("Excusa procesada correctamente");
-        response.setIndice(index);
-        response.setEmpleado(excusa.getNombreEmpleado());
-        response.setDescripcion(excusa.getDescripcion());
-        response.setTipoMotivo(excusa.getMotivo().getClass().getSimpleName());
-        return response;
     }
 
     @GetMapping
     public List<ExcusaResponse> obtenerTodasLasExcusas() {
-        return excusas.stream()
+        return excusaService.obtenerTodasLasExcusas().stream()
                 .map(this::convertirAResponse)
                 .toList();
     }
 
     @GetMapping("/buscar/empleado/{legajo}")
     public List<ExcusaResponse> obtenerExcusasPorEmpleado(@PathVariable int legajo) {
-        if (legajo <= 1000) {
-            throw new InvalidDataException("El legajo debe ser mayor a 1000");
-        }
-
-        empleadoController.obtenerEmpleadoPorLegajo(legajo);
-
-        List<ExcusaResponse> resultado = excusas.stream()
-                .filter(excusa -> excusa.getLegajoEmpleado() == legajo)
+        return excusaService.obtenerExcusasPorEmpleado(legajo).stream()
                 .map(this::convertirAResponse)
                 .toList();
-
-        if (resultado.isEmpty()) {
-            throw new ExcusaNotFoundException("No se encontraron excusas para el empleado con legajo: " + legajo);
-        }
-
-        return resultado;
     }
 
     @GetMapping("/buscar/motivo/{tipoMotivo}")
     public List<ExcusaResponse> obtenerExcusasPorTipoMotivo(@PathVariable String tipoMotivo) {
-        if (!tiposMotivosValidos.contains(tipoMotivo.toUpperCase())) {
-            throw new InvalidDataException("Tipo de motivo no válido. Tipos válidos: " + tiposMotivosValidos);
-        }
-
-        List<ExcusaResponse> resultado = excusas.stream()
-                .filter(excusa -> excusa.getMotivo().getClass().getSimpleName().toUpperCase().contains(tipoMotivo.toUpperCase()))
+        return excusaService.obtenerExcusasPorTipoMotivo(tipoMotivo).stream()
                 .map(this::convertirAResponse)
                 .toList();
-
-        if (resultado.isEmpty()) {
-            throw new ExcusaNotFoundException("No se encontraron excusas con el tipo de motivo: " + tipoMotivo);
-        }
-
-        return resultado;
-    }
-
-    private MotivoExcusa crearMotivo(String tipoMotivo) {
-        String tipo = tipoMotivo.toUpperCase();
-
-        if (tipo.equals("TRIVIAL")) {
-            return new MotivoTrivial();
-        } else if (tipo.equals("PROBLEMA_ELECTRICO")) {
-            return new MotivoProblemaElectrico();
-        } else if (tipo.equals("PROBLEMA_FAMILIAR")) {
-            return new MotivoProblemaFamiliar();
-        } else if (tipo.equals("COMPLEJO")) {
-            return new MotivoComplejo();
-        } else if (tipo.equals("INVEROSIMIL")) {
-            return new MotivoInverosimil();
-        } else {
-            throw new InvalidDataException("Tipo de motivo no válido: " + tipoMotivo);
-        }
     }
 
     private ExcusaResponse convertirAResponse(Excusa excusa) {

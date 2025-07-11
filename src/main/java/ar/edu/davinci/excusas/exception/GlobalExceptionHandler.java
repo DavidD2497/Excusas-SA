@@ -29,6 +29,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ExcusaNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleExcusaNotFound(ExcusaNotFoundException ex, WebRequest request) {
+        System.out.println("Handling ExcusaNotFoundException: " + ex.getMessage()); // Add logging
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.NOT_FOUND.value(),
                 "Excusa no encontrada",
@@ -65,6 +66,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(InvalidDataException.class)
     public ResponseEntity<ErrorResponse> handleInvalidData(InvalidDataException ex, WebRequest request) {
+        System.out.println("Handling InvalidDataException: " + ex.getMessage()); // Add logging
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 "Datos inválidos",
@@ -109,6 +111,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ErrorResponse> handleRuntimeException(RuntimeException ex, WebRequest request) {
+        System.out.println("Handling RuntimeException: " + ex.getMessage()); // Add logging
+        ex.printStackTrace(); // Add stack trace for debugging
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "Error interno del servidor",
@@ -161,8 +165,8 @@ public class GlobalExceptionHandler {
     public static class ValidationErrorResponse extends ErrorResponse {
         private Map<String, String> validationErrors;
 
-        public ValidationErrorResponse(int status, String error, String message, String path, 
-                                     LocalDateTime timestamp, Map<String, String> validationErrors) {
+        public ValidationErrorResponse(int status, String error, String message, String path,
+                                       LocalDateTime timestamp, Map<String, String> validationErrors) {
             super(status, error, message, path, timestamp);
             this.validationErrors = validationErrors;
         }

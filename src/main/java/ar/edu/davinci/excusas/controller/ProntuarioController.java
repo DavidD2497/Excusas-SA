@@ -1,9 +1,8 @@
 package ar.edu.davinci.excusas.controller;
 
-import ar.edu.davinci.excusas.exception.InvalidDataException;
-import ar.edu.davinci.excusas.exception.BusinessRuleException;
-import ar.edu.davinci.excusas.model.prontuarios.AdministradorProntuarios;
 import ar.edu.davinci.excusas.model.prontuarios.Prontuario;
+import ar.edu.davinci.excusas.service.ProntuarioService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -12,36 +11,26 @@ import java.util.List;
 @RequestMapping("/prontuarios")
 public class ProntuarioController {
 
-    private final AdministradorProntuarios administrador = AdministradorProntuarios.getInstance();
+    @Autowired
+    private ProntuarioService prontuarioService;
 
     @GetMapping
     public List<ProntuarioResponse> obtenerTodosLosProntuarios() {
-        return administrador.getProntuarios().stream()
+        return prontuarioService.obtenerTodosLosProntuarios().stream()
                 .map(this::convertirAResponse)
                 .toList();
     }
 
     @GetMapping("/buscar/empleado/{legajo}")
     public List<ProntuarioResponse> obtenerProntuariosPorEmpleado(@PathVariable int legajo) {
-        if (legajo <= 1000) {
-            throw new InvalidDataException("El legajo debe ser mayor a 1000");
-        }
-
-        List<ProntuarioResponse> prontuarios = administrador.getProntuarios().stream()
-                .filter(prontuario -> prontuario.getLegajo() == legajo)
+        return prontuarioService.obtenerProntuariosPorEmpleado(legajo).stream()
                 .map(this::convertirAResponse)
                 .toList();
-
-        if (prontuarios.isEmpty()) {
-            throw new BusinessRuleException("No se encontraron prontuarios para el empleado con legajo: " + legajo);
-        }
-
-        return prontuarios;
     }
 
     @GetMapping("/estadisticas/count")
     public ContarProntuariosResponse contarProntuarios() {
-        int cantidad = administrador.getProntuarios().size();
+        int cantidad = prontuarioService.contarProntuarios();
         ContarProntuariosResponse response = new ContarProntuariosResponse();
         response.setCantidad(cantidad);
         response.setMensaje("Total de prontuarios: " + cantidad);
@@ -50,17 +39,11 @@ public class ProntuarioController {
 
     @DeleteMapping("/administracion/limpiar")
     public LimpiarProntuariosResponse limpiarProntuarios() {
-        int cantidadAnterior = administrador.getProntuarios().size();
-
-        if (cantidadAnterior == 0) {
-            throw new BusinessRuleException("No hay prontuarios para eliminar");
-        }
-
-        administrador.limpiarProntuarios();
+        int cantidadEliminada = prontuarioService.limpiarProntuarios();
 
         LimpiarProntuariosResponse response = new LimpiarProntuariosResponse();
         response.setMensaje("Todos los prontuarios han sido eliminados");
-        response.setCantidadEliminada(cantidadAnterior);
+        response.setCantidadEliminada(cantidadEliminada);
         response.setCantidadActual(0);
         return response;
     }

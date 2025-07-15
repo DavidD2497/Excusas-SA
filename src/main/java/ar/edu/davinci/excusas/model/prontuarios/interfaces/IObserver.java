@@ -5,4 +5,3 @@ import ar.edu.davinci.excusas.model.prontuarios.Prontuario;
 public interface IObserver {
     void actualizar(Prontuario prontuario);
 }
-

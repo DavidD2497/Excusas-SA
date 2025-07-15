@@ -1,49 +1,63 @@
 package ar.edu.davinci.excusas.service;
 
+import ar.edu.davinci.excusas.dto.mapper.ProntuarioMapper;
+import ar.edu.davinci.excusas.entity.ProntuarioEntity;
 import ar.edu.davinci.excusas.exception.InvalidDataException;
 import ar.edu.davinci.excusas.exception.BusinessRuleException;
-import ar.edu.davinci.excusas.model.prontuarios.AdministradorProntuarios;
 import ar.edu.davinci.excusas.model.prontuarios.Prontuario;
+import ar.edu.davinci.excusas.repository.ProntuarioRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@Transactional
 public class ProntuarioService {
 
-    private final AdministradorProntuarios administrador = AdministradorProntuarios.getInstance();
+    @Autowired
+    private ProntuarioRepository prontuarioRepository;
 
+    @Autowired
+    private ProntuarioMapper prontuarioMapper;
+
+    @Transactional(readOnly = true)
     public List<Prontuario> obtenerTodosLosProntuarios() {
-        return administrador.getProntuarios();
+        return prontuarioRepository.findAll().stream()
+                .map(prontuarioMapper::toModel)
+                .toList();
     }
 
+    @Transactional(readOnly = true)
     public List<Prontuario> obtenerProntuariosPorEmpleado(int legajo) {
         validarLegajo(legajo);
 
-        List<Prontuario> prontuarios = administrador.getProntuarios().stream()
-                .filter(prontuario -> prontuario.getLegajo() == legajo)
-                .toList();
+        List<ProntuarioEntity> entities = prontuarioRepository.findByLegajo(legajo);
 
-        if (prontuarios.isEmpty()) {
+        if (entities.isEmpty()) {
             throw new BusinessRuleException("No se encontraron prontuarios para el empleado con legajo: " + legajo);
         }
 
-        return prontuarios;
+        return entities.stream()
+                .map(prontuarioMapper::toModel)
+                .toList();
     }
 
+    @Transactional(readOnly = true)
     public int contarProntuarios() {
-        return administrador.getProntuarios().size();
+        return (int) prontuarioRepository.count();
     }
 
     public int limpiarProntuarios() {
-        int cantidadAnterior = administrador.getProntuarios().size();
+        long cantidadAnterior = prontuarioRepository.count();
 
         if (cantidadAnterior == 0) {
             throw new BusinessRuleException("No hay prontuarios para eliminar");
         }
 
-        administrador.limpiarProntuarios();
-        return cantidadAnterior;
+        prontuarioRepository.deleteAll();
+        return (int) cantidadAnterior;
     }
 
     private void validarLegajo(int legajo) {

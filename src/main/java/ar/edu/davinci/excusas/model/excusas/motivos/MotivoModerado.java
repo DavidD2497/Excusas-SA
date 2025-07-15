@@ -9,5 +9,3 @@ public abstract class MotivoModerado extends MotivoExcusa {
         return encargado.puedeManejarModerado();
     }
 }
-
-

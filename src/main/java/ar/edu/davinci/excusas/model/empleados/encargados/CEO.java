@@ -6,12 +6,26 @@ import ar.edu.davinci.excusas.model.email.EmailSenderConcreto;
 import ar.edu.davinci.excusas.model.empleados.Encargado;
 import ar.edu.davinci.excusas.model.excusas.Excusa;
 import ar.edu.davinci.excusas.model.prontuarios.AdministradorProntuarios;
+import ar.edu.davinci.excusas.model.prontuarios.AdministradorProntuariosJPA;
 
 public class CEO extends Encargado implements IObserver {
 
+    private final AdministradorProntuariosJPA administradorProntuariosJPA;
+
     public CEO(String nombre, String email, int legajo) {
         super(nombre, email, legajo);
+        this.administradorProntuariosJPA = null;
         AdministradorProntuarios.getInstance().agregarObservador(this);
+    }
+
+    public CEO(String nombre, String email, int legajo, AdministradorProntuariosJPA administradorProntuarios) {
+        super(nombre, email, legajo);
+        this.administradorProntuariosJPA = administradorProntuarios;
+        if (administradorProntuarios != null) {
+            administradorProntuarios.agregarObservador(this);
+        } else {
+            AdministradorProntuarios.getInstance().agregarObservador(this);
+        }
     }
 
     @Override
@@ -28,7 +42,14 @@ public class CEO extends Encargado implements IObserver {
                 "Aprobado por creatividad"
         );
 
-        AdministradorProntuarios.getInstance().notificarExcusaProcesada(excusa, this);
+        // Use JPA administrator if available, otherwise use the singleton
+        if (administradorProntuariosJPA != null) {
+            administradorProntuariosJPA.notificarExcusaProcesada(excusa, this);
+        } else {
+            AdministradorProntuarios.getInstance().notificarExcusaProcesada(excusa, this);
+        }
+
+        System.out.println("CEO procesó excusa inverosímil para: " + excusa.getNombreEmpleado());
     }
 
     @Override

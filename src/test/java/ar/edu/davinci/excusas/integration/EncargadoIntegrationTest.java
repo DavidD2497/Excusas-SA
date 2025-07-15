@@ -187,4 +187,3 @@ public class EncargadoIntegrationTest {
         assertTrue(response.getBody().contains("Modo cambiado a NORMAL"));
     }
 }
-

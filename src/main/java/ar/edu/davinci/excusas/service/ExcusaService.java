@@ -1,5 +1,9 @@
 package ar.edu.davinci.excusas.service;
 
+import ar.edu.davinci.excusas.dto.mapper.EmpleadoMapper;
+import ar.edu.davinci.excusas.dto.mapper.ExcusaMapper;
+import ar.edu.davinci.excusas.entity.EmpleadoEntity;
+import ar.edu.davinci.excusas.entity.ExcusaEntity;
 import ar.edu.davinci.excusas.exception.BusinessRuleException;
 import ar.edu.davinci.excusas.exception.ExcusaNotFoundException;
 import ar.edu.davinci.excusas.exception.InvalidDataException;
@@ -7,21 +11,38 @@ import ar.edu.davinci.excusas.model.empleados.Empleado;
 import ar.edu.davinci.excusas.model.empleados.encargados.CadenaDeEncargados;
 import ar.edu.davinci.excusas.model.excusas.Excusa;
 import ar.edu.davinci.excusas.model.excusas.motivos.*;
+import ar.edu.davinci.excusas.model.prontuarios.AdministradorProntuariosJPA;
+import ar.edu.davinci.excusas.repository.EmpleadoRepository;
+import ar.edu.davinci.excusas.repository.ExcusaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 @Service
+@Transactional
 public class ExcusaService {
 
     @Autowired
     private EmpleadoService empleadoService;
 
-    private final List<Excusa> excusas = new ArrayList<>();
-    private final CadenaDeEncargados cadenaDeEncargados = new CadenaDeEncargados();
+    @Autowired
+    private ExcusaRepository excusaRepository;
+
+    @Autowired
+    private EmpleadoRepository empleadoRepository;
+
+    @Autowired
+    private ExcusaMapper excusaMapper;
+
+    @Autowired
+    private EmpleadoMapper empleadoMapper;
+
+    @Autowired
+    private AdministradorProntuariosJPA administradorProntuarios;
+
     private final List<String> tiposMotivosValidos = Arrays.asList(
             "TRIVIAL", "PROBLEMA_ELECTRICO", "PROBLEMA_FAMILIAR", "COMPLEJO", "INVEROSIMIL"
     );
@@ -30,58 +51,80 @@ public class ExcusaService {
         validarDatosExcusa(legajoEmpleado, tipoMotivo, descripcion);
 
         Empleado empleado = empleadoService.obtenerEmpleadoPorLegajo(legajoEmpleado);
+        EmpleadoEntity empleadoEntity = empleadoRepository.findByLegajo(legajoEmpleado)
+                .orElseThrow(() -> new RuntimeException("Empleado no encontrado"));
 
         validarLimiteExcusasEmpleado(legajoEmpleado);
 
-        MotivoExcusa motivo = crearMotivo(tipoMotivo);
-        Excusa excusa = empleado.crearExcusa(motivo, descripcion.trim());
-        excusas.add(excusa);
-        return excusa;
+        ExcusaEntity excusaEntity = excusaMapper.toEntity(empleado, tipoMotivo, descripcion.trim(), empleadoEntity);
+        ExcusaEntity savedEntity = excusaRepository.save(excusaEntity);
+
+        return excusaMapper.toModel(savedEntity);
     }
 
     public void procesarExcusa(int index) {
-        // Validation is now done in the controller
-        Excusa excusa = excusas.get(index);
+        List<ExcusaEntity> excusasEntities = excusaRepository.findAll();
+
+        if (index < 0) {
+            throw new InvalidDataException("El índice no puede ser negativo");
+        }
+        if (index >= excusasEntities.size()) {
+            throw new ExcusaNotFoundException("Excusa no encontrada en el índice: " + index);
+        }
+
+        ExcusaEntity excusaEntity = excusasEntities.get(index);
+        Excusa excusa = excusaMapper.toModel(excusaEntity);
+
         try {
-            cadenaDeEncargados.procesarExcusa(excusa);
+            // Create chain with JPA administrator for proper prontuario persistence
+            CadenaDeEncargados cadenaConJPA = new CadenaDeEncargados(administradorProntuarios);
+            cadenaConJPA.procesarExcusa(excusa);
+
+            excusaEntity.setProcesada(true);
+            excusaRepository.save(excusaEntity);
         } catch (Exception e) {
             throw new RuntimeException("Error en el procesamiento de la excusa: " + e.getMessage(), e);
         }
     }
 
+    @Transactional(readOnly = true)
     public List<Excusa> obtenerTodasLasExcusas() {
-        return new ArrayList<>(excusas);
+        return excusaRepository.findAll().stream()
+                .map(excusaMapper::toModel)
+                .toList();
     }
 
+    @Transactional(readOnly = true)
     public List<Excusa> obtenerExcusasPorEmpleado(int legajo) {
         validarLegajo(legajo);
 
         // Verificar que el empleado existe
         empleadoService.obtenerEmpleadoPorLegajo(legajo);
 
-        List<Excusa> resultado = excusas.stream()
-                .filter(excusa -> excusa.getLegajoEmpleado() == legajo)
-                .toList();
+        List<ExcusaEntity> entities = excusaRepository.findByEmpleadoLegajo(legajo);
 
-        if (resultado.isEmpty()) {
+        if (entities.isEmpty()) {
             throw new ExcusaNotFoundException("No se encontraron excusas para el empleado con legajo: " + legajo);
         }
 
-        return resultado;
+        return entities.stream()
+                .map(excusaMapper::toModel)
+                .toList();
     }
 
+    @Transactional(readOnly = true)
     public List<Excusa> obtenerExcusasPorTipoMotivo(String tipoMotivo) {
         validarTipoMotivo(tipoMotivo);
 
-        List<Excusa> resultado = excusas.stream()
-                .filter(excusa -> excusa.getMotivo().getClass().getSimpleName().toUpperCase().contains(tipoMotivo.toUpperCase()))
-                .toList();
+        List<ExcusaEntity> entities = excusaRepository.findByTipoMotivoContainingIgnoreCase(tipoMotivo);
 
-        if (resultado.isEmpty()) {
+        if (entities.isEmpty()) {
             throw new ExcusaNotFoundException("No se encontraron excusas con el tipo de motivo: " + tipoMotivo);
         }
 
-        return resultado;
+        return entities.stream()
+                .map(excusaMapper::toModel)
+                .toList();
     }
 
     private void validarDatosExcusa(int legajoEmpleado, String tipoMotivo, String descripcion) {
@@ -115,25 +158,10 @@ public class ExcusaService {
     }
 
     private void validarLimiteExcusasEmpleado(int legajoEmpleado) {
-        long excusasDelEmpleado = excusas.stream()
-                .filter(excusa -> excusa.getLegajoEmpleado() == legajoEmpleado)
-                .count();
+        long excusasDelEmpleado = excusaRepository.countByEmpleadoLegajo(legajoEmpleado);
 
         if (excusasDelEmpleado >= 5) {
             throw new BusinessRuleException("El empleado ya tiene el máximo de 5 excusas registradas");
         }
-    }
-
-    private MotivoExcusa crearMotivo(String tipoMotivo) {
-        String tipo = tipoMotivo.toUpperCase();
-
-        return switch (tipo) {
-            case "TRIVIAL" -> new MotivoTrivial();
-            case "PROBLEMA_ELECTRICO" -> new MotivoProblemaElectrico();
-            case "PROBLEMA_FAMILIAR" -> new MotivoProblemaFamiliar();
-            case "COMPLEJO" -> new MotivoComplejo();
-            case "INVEROSIMIL" -> new MotivoInverosimil();
-            default -> throw new InvalidDataException("Tipo de motivo no válido: " + tipoMotivo);
-        };
     }
 }

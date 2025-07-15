@@ -11,4 +11,3 @@ public class ModoVago implements IModoManejo {
         encargado.getSiguiente().manejarExcusa(excusa);
     }
 }
-

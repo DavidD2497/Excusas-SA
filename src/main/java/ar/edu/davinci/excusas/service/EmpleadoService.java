@@ -1,74 +1,90 @@
 package ar.edu.davinci.excusas.service;
 
+import ar.edu.davinci.excusas.dto.mapper.EmpleadoMapper;
+import ar.edu.davinci.excusas.entity.EmpleadoEntity;
 import ar.edu.davinci.excusas.exception.DuplicateEntityException;
 import ar.edu.davinci.excusas.exception.EmpleadoNotFoundException;
 import ar.edu.davinci.excusas.exception.InvalidDataException;
 import ar.edu.davinci.excusas.model.empleados.Empleado;
+import ar.edu.davinci.excusas.repository.EmpleadoRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
+@Transactional
 public class EmpleadoService {
 
-    private final List<Empleado> empleados = new ArrayList<>();
+    @Autowired
+    private EmpleadoRepository empleadoRepository;
+
+    @Autowired
+    private EmpleadoMapper empleadoMapper;
+
     private int contadorLegajo = 1000;
 
     public Empleado crearEmpleado(String nombre, String email) {
         validarDatosEmpleado(nombre, email);
         
-        if (existeEmpleadoConEmail(email)) {
+        if (empleadoRepository.existsByEmail(email.toLowerCase().trim())) {
             throw new DuplicateEntityException("Ya existe un empleado con el email: " + email);
         }
 
-        if (existeEmpleadoConNombre(nombre)) {
+        if (empleadoRepository.existsByNombre(nombre.trim())) {
             throw new DuplicateEntityException("Ya existe un empleado con el nombre: " + nombre);
         }
 
-        Empleado empleado = new Empleado(
+        EmpleadoEntity entity = empleadoMapper.toEntity(
                 nombre.trim(),
                 email.toLowerCase().trim(),
                 ++contadorLegajo
         );
-        empleados.add(empleado);
-        return empleado;
+        
+        EmpleadoEntity savedEntity = empleadoRepository.save(entity);
+        return empleadoMapper.toModel(savedEntity);
     }
 
+    @Transactional(readOnly = true)
     public List<Empleado> obtenerTodosLosEmpleados() {
-        return new ArrayList<>(empleados);
+        return empleadoRepository.findAll().stream()
+                .map(empleadoMapper::toModel)
+                .toList();
     }
 
+    @Transactional(readOnly = true)
     public Empleado obtenerEmpleadoPorLegajo(int legajo) {
         validarLegajo(legajo);
 
-        return empleados.stream()
-                .filter(emp -> emp.getLegajo() == legajo)
-                .findFirst()
+        EmpleadoEntity entity = empleadoRepository.findByLegajo(legajo)
                 .orElseThrow(() -> new EmpleadoNotFoundException(legajo));
+        
+        return empleadoMapper.toModel(entity);
     }
 
     public void eliminarEmpleado(int legajo) {
         validarLegajo(legajo);
 
-        boolean eliminado = empleados.removeIf(emp -> emp.getLegajo() == legajo);
-        if (!eliminado) {
-            throw new EmpleadoNotFoundException(legajo);
-        }
+        EmpleadoEntity entity = empleadoRepository.findByLegajo(legajo)
+                .orElseThrow(() -> new EmpleadoNotFoundException(legajo));
+        
+        empleadoRepository.delete(entity);
     }
 
+    @Transactional(readOnly = true)
     public List<Empleado> buscarPorNombre(String nombre) {
         validarNombreBusqueda(nombre);
 
-        List<Empleado> resultado = empleados.stream()
-                .filter(emp -> emp.getNombre().toLowerCase().contains(nombre.toLowerCase().trim()))
-                .toList();
+        List<EmpleadoEntity> entities = empleadoRepository.findByNombreContainingIgnoreCase(nombre.trim());
 
-        if (resultado.isEmpty()) {
+        if (entities.isEmpty()) {
             throw new EmpleadoNotFoundException("No se encontraron empleados con el nombre: " + nombre);
         }
 
-        return resultado;
+        return entities.stream()
+                .map(empleadoMapper::toModel)
+                .toList();
     }
 
     private void validarDatosEmpleado(String nombre, String email) {
@@ -102,15 +118,5 @@ public class EmpleadoService {
         if (nombre.trim().length() < 2) {
             throw new InvalidDataException("El nombre de búsqueda debe tener al menos 2 caracteres");
         }
-    }
-
-    private boolean existeEmpleadoConEmail(String email) {
-        return empleados.stream()
-                .anyMatch(emp -> emp.getEmail().equalsIgnoreCase(email.trim()));
-    }
-
-    private boolean existeEmpleadoConNombre(String nombre) {
-        return empleados.stream()
-                .anyMatch(emp -> emp.getNombre().equalsIgnoreCase(nombre.trim()));
     }
 }

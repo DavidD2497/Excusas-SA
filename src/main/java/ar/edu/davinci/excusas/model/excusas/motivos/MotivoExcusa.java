@@ -12,4 +12,3 @@ public abstract class MotivoExcusa {
         supervisor.procesarMotivoModeradoGenerico(excusa);
     }
 }
-

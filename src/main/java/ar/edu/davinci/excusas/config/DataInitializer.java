@@ -4,9 +4,15 @@ import ar.edu.davinci.excusas.service.EmpleadoService;
 import ar.edu.davinci.excusas.service.ExcusaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 @Component
+@ConditionalOnProperty(
+        value = "app.data-initializer.enabled",
+        havingValue = "true",
+        matchIfMissing = true
+)
 public class DataInitializer implements CommandLineRunner {
 
     @Autowired

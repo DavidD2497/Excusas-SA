@@ -20,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
 import java.util.List;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Service
 @Transactional
@@ -125,6 +127,76 @@ public class ExcusaService {
         return entities.stream()
                 .map(excusaMapper::toModel)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Excusa> obtenerExcusasRechazadas() {
+        List<ExcusaEntity> entities = excusaRepository.findByProcesada(false);
+
+        if (entities.isEmpty()) {
+            throw new ExcusaNotFoundException("No se encontraron excusas rechazadas");
+        }
+
+        return entities.stream()
+                .map(excusaMapper::toModel)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Excusa> buscarExcusasPorLegajoYFechas(int legajo, LocalDate fechaDesde, LocalDate fechaHasta) {
+        validarLegajo(legajo);
+
+        // Verificar que el empleado existe
+        empleadoService.obtenerEmpleadoPorLegajo(legajo);
+
+        List<ExcusaEntity> entities;
+
+        if (fechaDesde != null && fechaHasta != null) {
+            if (fechaDesde.isAfter(fechaHasta)) {
+                throw new InvalidDataException("La fecha desde no puede ser posterior a la fecha hasta");
+            }
+            LocalDateTime fechaDesdeTime = fechaDesde.atStartOfDay();
+            LocalDateTime fechaHastaTime = fechaHasta.atTime(23, 59, 59);
+            entities = excusaRepository.findByEmpleadoLegajoAndFechaCreacionBetween(legajo, fechaDesdeTime, fechaHastaTime);
+        } else if (fechaDesde != null) {
+            LocalDateTime fechaDesdeTime = fechaDesde.atStartOfDay();
+            entities = excusaRepository.findByEmpleadoLegajoAndFechaCreacionGreaterThanEqual(legajo, fechaDesdeTime);
+        } else if (fechaHasta != null) {
+            LocalDateTime fechaHastaTime = fechaHasta.atTime(23, 59, 59);
+            entities = excusaRepository.findByEmpleadoLegajoAndFechaCreacionLessThanEqual(legajo, fechaHastaTime);
+        } else {
+            entities = excusaRepository.findByEmpleadoLegajo(legajo);
+        }
+
+        if (entities.isEmpty()) {
+            throw new ExcusaNotFoundException("No se encontraron excusas para los criterios especificados");
+        }
+
+        return entities.stream()
+                .map(excusaMapper::toModel)
+                .toList();
+    }
+
+    public int eliminarExcusasAnterioresA(LocalDate fechaLimite) {
+        if (fechaLimite == null) {
+            throw new InvalidDataException("La fecha límite es obligatoria");
+        }
+
+        if (fechaLimite.isAfter(LocalDate.now())) {
+            throw new BusinessRuleException("No se pueden eliminar excusas con fecha futura");
+        }
+
+        LocalDateTime fechaLimiteTime = fechaLimite.atTime(23, 59, 59);
+        List<ExcusaEntity> excusasAEliminar = excusaRepository.findByFechaCreacionLessThanEqual(fechaLimiteTime);
+
+        if (excusasAEliminar.isEmpty()) {
+            throw new BusinessRuleException("No se encontraron excusas anteriores a la fecha especificada");
+        }
+
+        int cantidadEliminada = excusasAEliminar.size();
+        excusaRepository.deleteAll(excusasAEliminar);
+
+        return cantidadEliminada;
     }
 
     private void validarDatosExcusa(int legajoEmpleado, String tipoMotivo, String descripcion) {

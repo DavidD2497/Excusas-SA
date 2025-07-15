@@ -9,6 +9,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
+import org.springframework.format.annotation.DateTimeFormat;
+import java.time.LocalDate;
 
 import java.util.List;
 import ar.edu.davinci.excusas.exception.InvalidDataException;
@@ -68,6 +70,15 @@ public class ExcusaController {
                 .toList();
     }
 
+    // Endpoint según consigna exacta
+    @GetMapping("/{legajo}")
+    public List<ExcusaResponse> obtenerExcusasPorLegajo(@PathVariable int legajo) {
+        return excusaService.obtenerExcusasPorEmpleado(legajo).stream()
+                .map(this::convertirAResponse)
+                .toList();
+    }
+
+    // Mantener el endpoint anterior por compatibilidad
     @GetMapping("/buscar/empleado/{legajo}")
     public List<ExcusaResponse> obtenerExcusasPorEmpleado(@PathVariable int legajo) {
         return excusaService.obtenerExcusasPorEmpleado(legajo).stream()
@@ -80,6 +91,40 @@ public class ExcusaController {
         return excusaService.obtenerExcusasPorTipoMotivo(tipoMotivo).stream()
                 .map(this::convertirAResponse)
                 .toList();
+    }
+
+    @GetMapping("/rechazadas")
+    public List<ExcusaResponse> obtenerExcusasRechazadas() {
+        return excusaService.obtenerExcusasRechazadas().stream()
+                .map(this::convertirAResponse)
+                .toList();
+    }
+
+    @GetMapping("/busqueda")
+    public List<ExcusaResponse> buscarExcusas(
+            @RequestParam int legajo,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaHasta) {
+        return excusaService.buscarExcusasPorLegajoYFechas(legajo, fechaDesde, fechaHasta).stream()
+                .map(this::convertirAResponse)
+                .toList();
+    }
+
+    @DeleteMapping("/eliminar")
+    public EliminarExcusasResponse eliminarExcusasPorFecha(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaLimite) {
+
+        if (fechaLimite == null) {
+            throw new InvalidDataException("El parámetro fechaLimite es obligatorio para esta operación de eliminación");
+        }
+
+        int cantidadEliminada = excusaService.eliminarExcusasAnterioresA(fechaLimite);
+
+        EliminarExcusasResponse response = new EliminarExcusasResponse();
+        response.setMensaje("Excusas eliminadas correctamente");
+        response.setCantidadEliminada(cantidadEliminada);
+        response.setFechaLimite(fechaLimite);
+        return response;
     }
 
     private ExcusaResponse convertirAResponse(Excusa excusa) {
@@ -148,5 +193,18 @@ public class ExcusaController {
         public void setDescripcion(String descripcion) { this.descripcion = descripcion; }
         public String getTipoMotivo() { return tipoMotivo; }
         public void setTipoMotivo(String tipoMotivo) { this.tipoMotivo = tipoMotivo; }
+    }
+
+    public static class EliminarExcusasResponse {
+        private String mensaje;
+        private int cantidadEliminada;
+        private LocalDate fechaLimite;
+
+        public String getMensaje() { return mensaje; }
+        public void setMensaje(String mensaje) { this.mensaje = mensaje; }
+        public int getCantidadEliminada() { return cantidadEliminada; }
+        public void setCantidadEliminada(int cantidadEliminada) { this.cantidadEliminada = cantidadEliminada; }
+        public LocalDate getFechaLimite() { return fechaLimite; }
+        public void setFechaLimite(LocalDate fechaLimite) { this.fechaLimite = fechaLimite; }
     }
 }

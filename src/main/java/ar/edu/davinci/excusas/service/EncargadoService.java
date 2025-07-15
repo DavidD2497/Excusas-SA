@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import ar.edu.davinci.excusas.exception.DuplicateEntityException;
 
 @Service
 public class EncargadoService {
@@ -43,7 +44,7 @@ public class EncargadoService {
 
     public EncargadoInfo obtenerEncargado(String tipo) {
         validarTipoEncargado(tipo);
-        
+
         IManejadorExcusas encargado = encargados.get(tipo.toLowerCase());
         if (encargado == null) {
             throw new EncargadoNotFoundException("Encargado no encontrado: " + tipo);
@@ -52,8 +53,22 @@ public class EncargadoService {
         return crearEncargadoInfo(tipo, encargado);
     }
 
+    public EncargadoInfo crearEncargadoDinamico(String tipo, String nombre, String email, List<String> capacidades) {
+        validarDatosNuevoEncargado(tipo, nombre, email, capacidades);
+
+        if (encargados.containsKey(tipo.toLowerCase())) {
+            throw new DuplicateEntityException("Ya existe un encargado del tipo: " + tipo);
+        }
+
+        // Crear encargado dinámico basado en capacidades
+        IManejadorExcusas nuevoEncargado = crearEncargadoPorCapacidades(nombre, email, capacidades);
+        encargados.put(tipo.toLowerCase(), nuevoEncargado);
+
+        return crearEncargadoInfo(tipo, nuevoEncargado);
+    }
+
     public void cambiarModo(String tipo, String modo) {
-        validarTipoEncargado(tipo);
+        validarTipoEncargadoExistente(tipo);
         validarModo(modo);
 
         IManejadorExcusas encargado = encargados.get(tipo.toLowerCase());
@@ -91,6 +106,11 @@ public class EncargadoService {
         encargados.put("supervisor", new SupervisorArea("Pedro Super", "pedro@excusas.com", 2002));
         encargados.put("gerente", new GerenteRecursosHumanos("Sofia Gerente", "sofia@excusas.com", 2003));
         encargados.put("ceo", new CEO("Roberto CEO", "roberto@excusas.com", 2004));
+    }
+
+    private IManejadorExcusas crearEncargadoPorCapacidades(String nombre, String email, List<String> capacidades) {
+        // Crear un encargado genérico que puede manejar las capacidades especificadas
+        return new EncargadoDinamico(nombre, email, 3000 + encargados.size(), capacidades);
     }
 
     private EncargadoInfo crearEncargadoInfo(String tipo, IManejadorExcusas encargado) {
@@ -133,6 +153,12 @@ public class EncargadoService {
         }
     }
 
+    private void validarTipoEncargadoExistente(String tipo) {
+        if (!encargados.containsKey(tipo.toLowerCase())) {
+            throw new EncargadoNotFoundException("Encargado no encontrado: " + tipo);
+        }
+    }
+
     private void validarModo(String modo) {
         if (!modosValidos.contains(modo.toUpperCase())) {
             throw new InvalidDataException("Modo no válido. Modos válidos: " + modosValidos);
@@ -142,6 +168,27 @@ public class EncargadoService {
     private void validarCapacidad(String capacidad) {
         if (!capacidadesValidas.contains(capacidad.toUpperCase())) {
             throw new InvalidDataException("Capacidad no válida. Capacidades válidas: " + capacidadesValidas);
+        }
+    }
+
+    private void validarDatosNuevoEncargado(String tipo, String nombre, String email, List<String> capacidades) {
+        if (tipo == null || tipo.trim().isEmpty()) {
+            throw new InvalidDataException("El tipo de encargado es obligatorio");
+        }
+        if (nombre == null || nombre.trim().isEmpty()) {
+            throw new InvalidDataException("El nombre es obligatorio");
+        }
+        if (email == null || email.trim().isEmpty()) {
+            throw new InvalidDataException("El email es obligatorio");
+        }
+        if (capacidades == null || capacidades.isEmpty()) {
+            throw new InvalidDataException("Debe especificar al menos una capacidad");
+        }
+
+        for (String capacidad : capacidades) {
+            if (!capacidadesValidas.contains(capacidad.toUpperCase())) {
+                throw new InvalidDataException("Capacidad no válida: " + capacidad + ". Capacidades válidas: " + capacidadesValidas);
+            }
         }
     }
 

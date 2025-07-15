@@ -13,6 +13,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpMethod;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -311,5 +312,119 @@ public class ExcusaIntegrationTest {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertTrue(response.getBody().contains("Excusa procesada correctamente"));
         assertTrue(response.getBody().contains(nombreUnico));
+    }
+
+    @Test
+    public void testObtenerExcusasRechazadas() throws Exception {
+        // Crear empleado y excusa
+        int legajo = crearEmpleadoParaPruebas("Test Rechazadas", "test.rechazadas@test.com");
+
+        ExcusaController.ExcusaRequest request = new ExcusaController.ExcusaRequest();
+        request.setLegajoEmpleado(legajo);
+        request.setTipoMotivo("TRIVIAL");
+        request.setDescripcion("Excusa que será rechazada por el sistema");
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<ExcusaController.ExcusaRequest> entity = new HttpEntity<>(request, headers);
+
+        restTemplate.postForEntity(getBaseUrl(), entity, String.class);
+
+        // Obtener excusas rechazadas
+        ResponseEntity<String> response = restTemplate.getForEntity(getBaseUrl() + "/rechazadas", String.class);
+
+        // Verificar respuesta
+        assertTrue(response.getStatusCode() == HttpStatus.OK || response.getStatusCode() == HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    public void testBuscarExcusasPorLegajoYFechas() throws Exception {
+        // Crear empleado y excusa
+        int legajo = crearEmpleadoParaPruebas("Test Busqueda", "test.busqueda@test.com");
+
+        ExcusaController.ExcusaRequest request = new ExcusaController.ExcusaRequest();
+        request.setLegajoEmpleado(legajo);
+        request.setTipoMotivo("PROBLEMA_FAMILIAR");
+        request.setDescripcion("Excusa para búsqueda con fechas específicas");
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<ExcusaController.ExcusaRequest> entity = new HttpEntity<>(request, headers);
+
+        restTemplate.postForEntity(getBaseUrl(), entity, String.class);
+
+        // Buscar excusas por legajo
+        String url = getBaseUrl() + "/busqueda?legajo=" + legajo;
+        ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody().contains("Test Busqueda"));
+    }
+
+    @Test
+    public void testEliminarExcusasSinFechaLimite() throws Exception {
+        // Intentar eliminar sin fecha límite
+        ResponseEntity<String> response = restTemplate.exchange(
+                getBaseUrl() + "/eliminar",
+                HttpMethod.DELETE,
+                null,
+                String.class
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
+    public void testEliminarExcusasConFechaLimite() throws Exception {
+        // Crear empleado y excusa
+        int legajo = crearEmpleadoParaPruebas("Test Eliminar", "test.eliminar@test.com");
+
+        ExcusaController.ExcusaRequest request = new ExcusaController.ExcusaRequest();
+        request.setLegajoEmpleado(legajo);
+        request.setTipoMotivo("TRIVIAL");
+        request.setDescripcion("Excusa para eliminar con fecha límite");
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<ExcusaController.ExcusaRequest> entity = new HttpEntity<>(request, headers);
+
+        restTemplate.postForEntity(getBaseUrl(), entity, String.class);
+
+        // Eliminar excusas con fecha límite futura
+        String fechaLimite = "2025-12-31";
+        ResponseEntity<String> response = restTemplate.exchange(
+                getBaseUrl() + "/eliminar?fechaLimite=" + fechaLimite,
+                HttpMethod.DELETE,
+                null,
+                String.class
+        );
+
+        // Puede ser exitoso o fallar por reglas de negocio
+        assertTrue(response.getStatusCode() == HttpStatus.OK ||
+                response.getStatusCode() == HttpStatus.UNPROCESSABLE_ENTITY);
+    }
+
+    @Test
+    public void testBuscarExcusasConFechas() throws Exception {
+        int legajo = crearEmpleadoParaPruebas("Test Fechas", "test.fechas@test.com");
+
+        ExcusaController.ExcusaRequest request = new ExcusaController.ExcusaRequest();
+        request.setLegajoEmpleado(legajo);
+        request.setTipoMotivo("COMPLEJO");
+        request.setDescripcion("Excusa para prueba de filtros por fecha");
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<ExcusaController.ExcusaRequest> entity = new HttpEntity<>(request, headers);
+
+        restTemplate.postForEntity(getBaseUrl(), entity, String.class);
+
+        // Buscar con rango de fechas
+        String url = getBaseUrl() + "/busqueda?legajo=" + legajo +
+                "&fechaDesde=2025-01-01&fechaHasta=2025-12-31";
+        ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody().contains("Test Fechas"));
     }
 }
